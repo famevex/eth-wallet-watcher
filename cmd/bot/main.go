@@ -4,19 +4,19 @@ import (
 	"log"
 	"net/http"
 	"net/url"
-	"os"
 	"time"
 
-	"github.com/joho/godotenv"
+	"github.com/famevex/eth-wallet-watcher/internal/config"
 	telebot "gopkg.in/telebot.v3"
 )
 
 func main() {
-	godotenv.Load()
-	telegram_token := os.Getenv("TELEGRAM_TOKEN")
-	proxy_url := os.Getenv("PROXY_URL")
+	conf, err := config.Load()
+	if err != nil {
+		log.Fatal(err)
+	}
 	
-	proxyURL, err := url.Parse(proxy_url) // bring link to the type *url.URL (for Client)
+	proxyURL, err := url.Parse(conf.ProxyURL) // bring link to the type *url.URL (for Client)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -30,7 +30,7 @@ func main() {
 
 	// set up the bot settings
 	pref := telebot.Settings{
-		Token: telegram_token,
+		Token: conf.TelegramToken,
 		Poller: &telebot.LongPoller{Timeout: 10 * time.Second},
 		Client: client,
 	}
