@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/famevex/eth-wallet-watcher/internal/config"
+	"github.com/famevex/eth-wallet-watcher/internal/db"
 	telebot "gopkg.in/telebot.v3"
 )
 
@@ -15,6 +16,15 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	dbConnection, err := db.Connect(conf.Database_URL)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer dbConnection.Close()
+	db.RunMigrations(dbConnection)
+	
+
 	
 	proxyURL, err := url.Parse(conf.ProxyURL) // bring link to the type *url.URL (for Client)
 	if err != nil {

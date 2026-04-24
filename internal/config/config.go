@@ -10,6 +10,7 @@ import (
 type Config struct {
 	TelegramToken string
 	ProxyURL      string
+	Database_URL string
 }
 
 func Load() (*Config, error) {
@@ -20,9 +21,13 @@ func Load() (*Config, error) {
 	conf := Config{
 		TelegramToken: os.Getenv("TELEGRAM_TOKEN"),
 		ProxyURL: os.Getenv("PROXY_URL"),
+		Database_URL: os.Getenv("DATABASE_URL"),
 	}
 	if conf.TelegramToken == "" {
 		return nil, fmt.Errorf("TELEGRAM_TOKEN is required")
+	}
+	if conf.Database_URL == "" {
+		return nil, fmt.Errorf("DATABASE_URL is required")
 	}
 	return &conf, nil
 }
