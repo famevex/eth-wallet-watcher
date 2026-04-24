@@ -17,15 +17,17 @@ func main() {
 		log.Fatal(err)
 	}
 
-	dbConnection, err := db.Connect(conf.Database_URL)
+	dbConnection, err := db.Connect(conf.DatabaseURL)
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer dbConnection.Close()
-	db.RunMigrations(dbConnection)
+
+	if err := db.RunMigrations(dbConnection); err != nil {
+		log.Fatal(err)
+	}
 	
 
-	
 	proxyURL, err := url.Parse(conf.ProxyURL) // bring link to the type *url.URL (for Client)
 	if err != nil {
 		log.Fatal(err)
@@ -50,6 +52,7 @@ func main() {
 		log.Fatal(err)
 	}
 
+
 	// /start
 	b.Handle("/start", func(c telebot.Context) error {
 		return c.Send("Hi, I'm eth-wallet-watcher-bot")
@@ -59,6 +62,7 @@ func main() {
 	b.Handle(telebot.OnText, func(c telebot.Context) error {
 		return c.Send("You wrote: " + c.Text())
 	})
+
 
 	log.Println("Bot started...")
 	b.Start()
