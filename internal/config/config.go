@@ -1,7 +1,7 @@
 package config
 
 import (
-	"log"
+	"fmt"
 	"os"
 
 	"github.com/joho/godotenv"
@@ -14,13 +14,15 @@ type Config struct {
 
 func Load() (*Config, error) {
 	if err := godotenv.Load(); err != nil {
-		log.Fatal("Error loading .env file")
-		return nil, err
+		return nil, fmt.Errorf("loading .env: %w", err)
 	}
 
 	conf := Config{
 		TelegramToken: os.Getenv("TELEGRAM_TOKEN"),
 		ProxyURL: os.Getenv("PROXY_URL"),
+	}
+	if conf.TelegramToken == "" {
+		return nil, fmt.Errorf("TELEGRAM_TOKEN is required")
 	}
 	return &conf, nil
 }
