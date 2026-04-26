@@ -39,7 +39,14 @@ func AddSubscription(db *sql.DB, chatID int64, address string) error {
 	VALUES ($1, $2)
 	ON CONFLICT (chat_id, address) DO NOTHING;
 	`
-	_, err := db.Exec(query, chatID, address)
+	result, err := db.Exec(query, chatID, address)
+	if err != nil {
+		return err
+	}
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected == 0 {
+		return fmt.Errorf("already exists")
+	}
 	return err
 }
 

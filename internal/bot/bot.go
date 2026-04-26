@@ -19,6 +19,16 @@ func NewBot(db *sql.DB, tg *telebot.Bot) *Bot {
 	}
 }
 
+func (b *Bot) Register() {
+    b.tg.Handle("/start", b.HandleStart)
+    b.tg.Handle("/watch", b.HandleWatch)
+    b.tg.Handle("/unwatch", b.HandleUnwatch)
+}
+
+func (b *Bot) Start() {
+    b.tg.Start()
+}
+
 func (*Bot) HandleStart(c telebot.Context) error {
 	return c.Send("Hi, I'm eth-wallet-watcher-bot. Commands: /watch, /unwatch")
 }
@@ -29,11 +39,17 @@ func (b *Bot) HandleWatch(c telebot.Context) error {
 	if address == "" {
         return c.Send("Please include the address after the command. For example: /watch 0x...")
     }
-
+	if !isValidAddress(address) {
+		return c.Send("Invalid address")
+	}
 	err := db.AddSubscription(b.db, chatID, address)
 	if err != nil {
-        return c.Send("Error adding subscription.")
-    }
+		if err.Error() == "already exists" {
+			return c.Send("You're already watching this address!")
+		}
+
+		return c.Send("An error occurred while saving to the database.")
+	}
 
 	return c.Send("Subscription added!")
 }
@@ -51,4 +67,8 @@ func (b *Bot) HandleUnwatch(c telebot.Context) error {
     }
 
 	return c.Send("Subscription deleted!")
+}
+
+func isValidAddress(address string) bool {
+    return len(address) == 42 && address[:2] == "0x"
 }

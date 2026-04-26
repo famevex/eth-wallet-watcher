@@ -49,17 +49,14 @@ func main() {
 	}
 
 	// create bot
-	b, err := telebot.NewBot(pref)
+	tbBot, err := telebot.NewBot(pref)
 	if err != nil {
 		log.Fatal(err)
 	}
+	appBot := bot.NewBot(dbConnection, tbBot)
+	appBot.Register()
 
-	// installing handlers for the bot
-	fBot := bot.NewBot(dbConnection, b)
-	b.Handle("/start", fBot.HandleStart)
-	b.Handle("/watch", fBot.HandleWatch)
-	b.Handle("/unwatch", fBot.HandleUnwatch)
 	
 	log.Println("Bot started...")
-	b.Start()
+	appBot.Start()
 }
