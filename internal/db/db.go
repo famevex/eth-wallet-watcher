@@ -32,3 +32,50 @@ func RunMigrations(db *sql.DB) error {
 	_, err := db.Exec(query)
 	return err
 }
+
+func AddSubscription(db *sql.DB, chatID int64, address string) error {
+	query := `
+	INSERT INTO subscriptions (chat_id, address)
+	VALUES ($1, $2)
+	ON CONFLICT (chat_id, address) DO NOTHING;
+	`
+	_, err := db.Exec(query, chatID, address)
+	return err
+}
+
+func RemoveSubscription(db *sql.DB, chatID int64, address string) error {
+	query := `
+	DELETE FROM subscriptions
+	WHERE chat_id = $1 AND address = $2
+	`
+
+	_, err := db.Exec(query, chatID, address)
+	return err
+}
+
+type Subscription struct {
+    ChatID  int64
+    Address string
+}
+
+func GetSubscriptionsByChatID(db *sql.DB, chatID int64) ([]Subscription, error) {
+	query := `
+	SELECT chat_id, address FROM subscriptions
+	WHERE chat_id = $1;
+	`
+	rows, err := db.Query(query, chatID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var subs []Subscription
+	for rows.Next() {
+		var s Subscription
+		if err := rows.Scan(&s.ChatID, &s.Address); err != nil {
+			return nil, err
+		}
+		subs = append(subs, s)
+	}
+	return subs, rows.Err()
+}

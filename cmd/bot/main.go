@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/famevex/eth-wallet-watcher/internal/bot"
 	"github.com/famevex/eth-wallet-watcher/internal/config"
 	"github.com/famevex/eth-wallet-watcher/internal/db"
 	telebot "gopkg.in/telebot.v3"
@@ -47,23 +48,18 @@ func main() {
 		Client: client,
 	}
 
+	// create bot
 	b, err := telebot.NewBot(pref)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-
-	// /start
-	b.Handle("/start", func(c telebot.Context) error {
-		return c.Send("Hi, I'm eth-wallet-watcher-bot")
-	})
-
-	// plain text
-	b.Handle(telebot.OnText, func(c telebot.Context) error {
-		return c.Send("You wrote: " + c.Text())
-	})
-
-
+	// installing handlers for the bot
+	fBot := bot.NewBot(dbConnection, b)
+	b.Handle("/start", fBot.HandleStart)
+	b.Handle("/watch", fBot.HandleWatch)
+	b.Handle("/unwatch", fBot.HandleUnwatch)
+	
 	log.Println("Bot started...")
 	b.Start()
 }
