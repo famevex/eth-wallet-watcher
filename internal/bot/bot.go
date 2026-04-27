@@ -2,8 +2,10 @@ package bot
 
 import (
 	"database/sql"
+	"fmt"
 
 	"github.com/famevex/eth-wallet-watcher/internal/db"
+	"github.com/famevex/eth-wallet-watcher/internal/monitor"
 	"gopkg.in/telebot.v3"
 )
 
@@ -71,4 +73,20 @@ func (b *Bot) HandleUnwatch(c telebot.Context) error {
 
 func isValidAddress(address string) bool {
     return len(address) == 42 && address[:2] == "0x"
+}
+
+func (b *Bot) ListenAlerts(alerts <-chan monitor.Alert) {
+    for alert := range alerts {
+        msg := fmt.Sprintf(
+            "🔔 *%s Transaction*\nType: %s\nAmount: %s\nFrom: `%s`\nTo: `%s`\nEtherscan: https://etherscan.io/tx/%s",
+            alert.Asset,
+            alert.Type,
+            alert.Amount,
+            alert.From,
+            alert.To,
+            alert.TxHash,
+        )
+        chat := &telebot.Chat{ID: alert.ChatID}
+        b.tg.Send(chat, msg, telebot.ModeMarkdown)
+    }
 }

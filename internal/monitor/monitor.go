@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"log"
 	"math/big"
-	"os"
 	"strings"
 
 	"github.com/ethereum/go-ethereum"
@@ -16,7 +15,6 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/famevex/eth-wallet-watcher/internal/db"
 	"github.com/gorilla/websocket"
-	"github.com/joho/godotenv"
 )
 
 var transferTopic = common.HexToHash(
@@ -44,9 +42,9 @@ type Monitor struct {
 type NewHeadsNotification struct {
     Params struct {
         Result struct {
-            Number     string `json:"number"`     // блок в hex: "0x123456"
-            Hash       string `json:"hash"`       // хэш блока
-            Timestamp  string `json:"timestamp"`  // время в hex
+            Number     string `json:"number"`     
+            Hash       string `json:"hash"`       
+            Timestamp  string `json:"timestamp"`  
         } `json:"result"`
     } `json:"params"`
 }
@@ -66,9 +64,8 @@ func NewMonitor(client *ethclient.Client, db *sql.DB, alerts chan<- Alert, usdc 
 	}
 }
 
-func (m *Monitor) Start (ctx context.Context) {
-	godotenv.Load()
-	wssURL := os.Getenv("ALCHEMY_WSS_URL")
+func (m *Monitor) Start (ctx context.Context, WSSURL string) {
+	wssURL := WSSURL
 
 	conn, _, err := websocket.DefaultDialer.Dial(wssURL, nil)
 	if err != nil {
@@ -140,8 +137,10 @@ func (m *Monitor) processETH(ctx context.Context, blockHash string) {
 	
 	for _, tx := range block.Transactions() {
         if tx.To() == nil { continue } // skip creating contracts
-
+		if tx.Value().Sign() == 0 { continue } // skip 0.0 ETH transaction to address USDC
+		
         from, err := types.Sender(signer, tx)
+		
         if err != nil { continue }
         
         to := tx.To()

@@ -47,7 +47,7 @@ func AddSubscription(db *sql.DB, chatID int64, address string) error {
 	if rowsAffected == 0 {
 		return fmt.Errorf("already exists")
 	}
-	return err
+	return nil
 }
 
 func RemoveSubscription(db *sql.DB, chatID int64, address string) error {
@@ -63,28 +63,6 @@ func RemoveSubscription(db *sql.DB, chatID int64, address string) error {
 type Subscription struct {
     ChatID  int64
     Address string
-}
-
-func GetSubscriptionsByChatID(db *sql.DB, chatID int64) ([]Subscription, error) {
-	query := `
-	SELECT chat_id, address FROM subscriptions
-	WHERE chat_id = $1;
-	`
-	rows, err := db.Query(query, chatID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var subs []Subscription
-	for rows.Next() {
-		var s Subscription
-		if err := rows.Scan(&s.ChatID, &s.Address); err != nil {
-			return nil, err
-		}
-		subs = append(subs, s)
-	}
-	return subs, rows.Err()
 }
 
 func GetAllSubscriptions(db *sql.DB) ([]Subscription, error) {

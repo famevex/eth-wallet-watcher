@@ -5,7 +5,6 @@ import (
 	"log"
 	"net/http"
 	"net/url"
-	"os"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -33,10 +32,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	apiKey := os.Getenv("API_KEY")
-	ethurl := "wss://eth-mainnet.g.alchemy.com/v2/" + apiKey
-
-    ethClient, err := ethclient.Dial(ethurl)
+    ethClient, err := ethclient.Dial(conf.AlchemyWssURL)
     if err != nil {
         log.Fatalf("Ошибка подключения к ноде: %v", err)
     }
@@ -52,7 +48,7 @@ func main() {
 	// сreate a context and a function to close the goroutine
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	go m.Start(ctx)
+	go m.Start(ctx, conf.AlchemyWssURL)
 	
 
 	proxyURL, err := url.Parse(conf.ProxyURL) // bring link to the type *url.URL (for Client)
@@ -82,6 +78,7 @@ func main() {
 	appBot := bot.NewBot(dbConnection, tbBot)
 	appBot.Register()
 
+	go appBot.ListenAlerts(alertChannel)
 	
 	log.Println("Bot started...")
 	appBot.Start()

@@ -33,5 +33,8 @@ func Load() (*Config, error) {
 	if conf.DatabaseURL == "" {
 		return nil, fmt.Errorf("DATABASE_URL is required")
 	}
+	if conf.AlchemyWssURL == ""{
+		return nil, fmt.Errorf("ALCHEMY_WSS_URL is required")
+	}
 	return &conf, nil
 }
