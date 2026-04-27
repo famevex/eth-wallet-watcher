@@ -86,3 +86,25 @@ func GetSubscriptionsByChatID(db *sql.DB, chatID int64) ([]Subscription, error) 
 	}
 	return subs, rows.Err()
 }
+
+func GetAllSubscriptions(db *sql.DB) ([]Subscription, error) {
+	query := `
+	SELECT chat_id, address FROM subscriptions
+	`
+
+	rows, err := db.Query(query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var subs []Subscription
+	for rows.Next() {
+		var s Subscription
+		if err := rows.Scan(&s.ChatID, &s.Address); err != nil {
+			return nil, err
+		}
+		subs = append(subs, s)
+	}
+	return subs, rows.Err()
+}

@@ -1,14 +1,19 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net/http"
 	"net/url"
+	"os"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/famevex/eth-wallet-watcher/internal/bot"
 	"github.com/famevex/eth-wallet-watcher/internal/config"
 	"github.com/famevex/eth-wallet-watcher/internal/db"
+	"github.com/famevex/eth-wallet-watcher/internal/monitor"
 	telebot "gopkg.in/telebot.v3"
 )
 
@@ -27,6 +32,27 @@ func main() {
 	if err := db.RunMigrations(dbConnection); err != nil {
 		log.Fatal(err)
 	}
+
+	apiKey := os.Getenv("API_KEY")
+	ethurl := "wss://eth-mainnet.g.alchemy.com/v2/" + apiKey
+
+    ethClient, err := ethclient.Dial(ethurl)
+    if err != nil {
+        log.Fatalf("Ошибка подключения к ноде: %v", err)
+    }
+
+	alertChannel := make(chan monitor.Alert, 100)
+	m := monitor.NewMonitor (
+		ethClient,
+		dbConnection,
+		alertChannel,
+		common.HexToAddress(conf.UsdcContract),
+	)
+
+	
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go m.Start(ctx)
 	
 
 	proxyURL, err := url.Parse(conf.ProxyURL) // bring link to the type *url.URL (for Client)

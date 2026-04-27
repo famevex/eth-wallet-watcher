@@ -11,6 +11,8 @@ type Config struct {
 	TelegramToken string
 	ProxyURL      string
 	DatabaseURL string
+	AlchemyWssURL string
+	UsdcContract string
 }
 
 func Load() (*Config, error) {
@@ -22,6 +24,8 @@ func Load() (*Config, error) {
 		TelegramToken: os.Getenv("TELEGRAM_TOKEN"),
 		ProxyURL: os.Getenv("PROXY_URL"),
 		DatabaseURL: os.Getenv("DATABASE_URL"),
+		AlchemyWssURL: os.Getenv("ALCHEMY_WSS_URL"),
+		UsdcContract: os.Getenv("USDC_CONTRACT"),
 	}
 	if conf.TelegramToken == "" {
 		return nil, fmt.Errorf("TELEGRAM_TOKEN is required")
