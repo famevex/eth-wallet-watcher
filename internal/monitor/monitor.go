@@ -10,6 +10,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
@@ -17,6 +18,11 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/joho/godotenv"
 )
+
+var transferTopic = common.HexToHash(
+    "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+)
+
 type Alert struct {
     ChatID  int64
     Type    string  // "in" или "out"
@@ -35,7 +41,6 @@ type Monitor struct {
 	chainID *big.Int
 }
 
-
 type NewHeadsNotification struct {
     Params struct {
         Result struct {
@@ -47,6 +52,7 @@ type NewHeadsNotification struct {
 }
 
 func NewMonitor(client *ethclient.Client, db *sql.DB, alerts chan<- Alert, usdc common.Address) *Monitor {
+	// get chainID for signer in Eth transaction
 	chainID, err := client.ChainID(context.Background())
 	if err != nil {
 		log.Fatal("cannot get chainID:", err)
@@ -70,9 +76,9 @@ func (m *Monitor) Start (ctx context.Context) {
 	}
 	defer conn.Close()
 	go func() {
-        <-ctx.Done() // Ждем, пока кто-то вызовет cancel()
-        fmt.Println("Контекст отменен, закрываем соединение...")
-        conn.Close() // Принудительно рвем сокет
+        <-ctx.Done() // wait for someone to call cancel()
+        fmt.Println("Context cancelled, closing connection...")
+        conn.Close() // forcefully break the socket
     }()
 
 	subscribeMsg := `{
@@ -82,25 +88,36 @@ func (m *Monitor) Start (ctx context.Context) {
 		"params":["newHeads"]
 	}`
 
+	// sending a subscription message
 	err = conn.WriteMessage(websocket.TextMessage, []byte(subscribeMsg))
 	if err != nil {
 		log.Fatal("write error:", err)
 	}
 
 	for {
+		// receiving messages from the server.
 		_, message, err := conn.ReadMessage()
 		if err != nil {
 			fmt.Println("Ошибка соединения с сервером Alchemy")
 			return
 		}
 
+		// collect the necessary data about the new block
 		var notification NewHeadsNotification
         if err := json.Unmarshal(message, &notification); err != nil {
             log.Printf("JSON parse error: %v", err)
             continue
         }
+		if notification.Params.Result.Hash == "" {
+			continue
+		}
 
 		go m.processETH(ctx, notification.Params.Result.Hash)
+
+		blockNumHex := strings.TrimPrefix(notification.Params.Result.Number, "0x")
+		blockNum := new(big.Int)
+		blockNum.SetString(blockNumHex, 16)
+		go m.processUSDC(ctx, blockNum)
 	}
 }
 
@@ -122,7 +139,7 @@ func (m *Monitor) processETH(ctx context.Context, blockHash string) {
 	signer := types.NewLondonSigner(m.chainID)
 	
 	for _, tx := range block.Transactions() {
-        if tx.To() == nil { continue } // пропускаем создание контрактов
+        if tx.To() == nil { continue } // skip creating contracts
 
         from, err := types.Sender(signer, tx)
         if err != nil { continue }
@@ -150,6 +167,61 @@ func (m *Monitor) processETH(ctx context.Context, blockHash string) {
 					From: from.Hex(),
 					To: to.Hex(),
 					TxHash: tx.Hash().Hex(),
+				})
+            }
+        }
+    }
+}
+
+func (m *Monitor) processUSDC(ctx context.Context, blockNum *big.Int) {
+    query := ethereum.FilterQuery{
+        FromBlock: blockNum,
+        ToBlock:   blockNum,
+        Addresses: []common.Address{m.usdc},
+        Topics:    [][]common.Hash{{transferTopic}},
+    }
+
+    logs, err := m.client.FilterLogs(ctx, query)
+    if err != nil {
+		log.Printf("Get logs error: %v", err)
+        return
+	}
+    subs, err := m.getSubscriptions()
+    if err != nil {
+		log.Printf("Get subscriptions error: %v", err)
+        return
+	}
+
+    for _, logEntry := range logs {
+        if len(logEntry.Topics) < 3 { continue }
+
+        from := common.HexToAddress(logEntry.Topics[1].Hex())
+        to   := common.HexToAddress(logEntry.Topics[2].Hex())
+        
+        amount := new(big.Int).SetBytes(logEntry.Data)
+        txHash := logEntry.TxHash.Hex()
+
+        for _, sub := range subs {
+            if strings.EqualFold(sub.Address, from.Hex()) {
+                m.sendAlert(Alert {
+					ChatID: sub.ChatID,
+					Type: "out",
+					Asset: "USDC",
+					Amount: usdcToFloat(amount),
+					From: from.Hex(),
+					To: to.Hex(),
+					TxHash: txHash,
+				})
+            }
+            if strings.EqualFold(sub.Address, to.Hex()) {
+               m.sendAlert(Alert {
+					ChatID: sub.ChatID,
+					Type: "in",
+					Asset: "USDC",
+					Amount: usdcToFloat(amount),
+					From: from.Hex(),
+					To: to.Hex(),
+					TxHash: txHash,
 				})
             }
         }
@@ -185,6 +257,14 @@ func weiToEth(wei *big.Int) string {
     return fmt.Sprintf("%.6f ETH", eth)
 }
 
+// 1 USDC = 1_000_000 raw amount
+func usdcToFloat(raw *big.Int) string {
+    f := new(big.Float).Quo(
+        new(big.Float).SetInt(raw),
+        new(big.Float).SetFloat64(1e6),
+    )
+    return fmt.Sprintf("%.2f USDC", f)
+}
 func shortAddr(addr string) string {
     if len(addr) < 10 { return addr }
     return addr[:6] + "..." + addr[len(addr)-4:]

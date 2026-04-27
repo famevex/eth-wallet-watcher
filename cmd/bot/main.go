@@ -49,7 +49,7 @@ func main() {
 		common.HexToAddress(conf.UsdcContract),
 	)
 
-	
+	// сreate a context and a function to close the goroutine
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	go m.Start(ctx)
