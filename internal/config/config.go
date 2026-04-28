@@ -16,9 +16,7 @@ type Config struct {
 }
 
 func Load() (*Config, error) {
-	if err := godotenv.Load(); err != nil {
-		return nil, fmt.Errorf("loading .env: %w", err)
-	}
+	godotenv.Load()
 
 	conf := Config{
 		TelegramToken: os.Getenv("TELEGRAM_TOKEN"),

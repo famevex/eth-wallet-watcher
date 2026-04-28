@@ -68,21 +68,21 @@ cp .env.example .env
 Fill in `.env`:
 ```env
 TELEGRAM_TOKEN=your_telegram_bot_token
-PROXY_URL=socks5://127.0.0.1:1080   # optional, required if Telegram is blocked in your region
+PROXY_URL=socks5://127.0.0.1:10808   # optional, required if Telegram is blocked in your region
 DATABASE_URL=postgres://postgres:postgres@localhost:5432/wallet_watcher?sslmode=disable
 ALCHEMY_WSS_URL=wss://eth-mainnet.g.alchemy.com/v2/your_api_key
 USDC_CONTRACT=0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48
 ```
+> **Note:** `DATABASE_URL` uses `postgres` as the host — this is the Docker service name, not `localhost`.
+>
+> **Note:** `host.docker.internal` points to your host machine from inside the container. On Linux you may need to add `extra_hosts: ["host.docker.internal:host-gateway"]` to the bot service in `docker-compose.yml`.
 
-**3. Start PostgreSQL**
+**3. Run everything**
 ```bash
-docker compose up -d
+docker compose up --build
 ```
 
-**4. Run the bot**
-```bash
-go run cmd/bot/main.go
-```
+That's it. Docker will start PostgreSQL first, wait until it's healthy, then start the bot.
 
 ## Usage
 
